@@ -2,13 +2,15 @@ Package: osmisochrone
 Type: Package
 Title: Isochrone creation
 Version: 0.1.0
-Author: Who wrote it
-Maintainer: The package maintainer <yourself@somewhere.net>
+Author: Charles Gauvin
+Maintainer: Charles Gauvin <charles.gauvin123@gmail.com>
 Description: Code to create isochrones using open street map (OSM) data.
 License: MIT LICENSE
 Encoding: UTF-8
 LazyData: true
 Suggests: 
+    knitr,
+    rmarkdown,
     testthat (>= 3.0.0)
 Imports:
     osmdata,
@@ -17,3 +19,5 @@ Imports:
     stplanr,
     concaveman
 Config/testthat/edition: 3
+RoxygenNote: 7.2.1
+VignetteBuilder: knitr
