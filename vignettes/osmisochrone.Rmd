@@ -22,7 +22,6 @@ knitr::opts_chunk$set(
 library(osmisochrone)
 options("rgdal_show_exportToProj4_warnings"="none")
 library(sf)
-library(here)
 library(tidyverse)
 library(magrittr)
 library(glue)
@@ -37,15 +36,6 @@ assertthat::assert_that(curl::has_internet(), msg='Internet required to run test
 ## Ggplot theme
 ```{r, message=FALSE }
 custom_minimal_theme <- function(){  ggplot2::theme_minimal(base_family="Roboto Condensed", base_size=11.5) }
-```
-
-## Check for figures dir
-```{r, message=FALSE }
-
-if(!dir.exists(here('figures'))){
-  dir.create(here('figures'))
-}
-
 ```
 
 ## Params
@@ -91,7 +81,6 @@ ggplot() +
   coord_sf(datum=NA)
 
 
-#ggsave(here('figures', 'isochrones_all_modes_atlanta_1km.png'),bg='white')
 
 ```
 
@@ -298,7 +287,6 @@ plot_annotation(
                                            plot.caption = element_text(family='Roboto condensed')) & labs(fill='Time (minutes)' )
 
 
-#ggsave(here('figures','driving_isochrones_size_by_time_map.png'),bg='white', width = 7, height = 5)
  
 
 ```
@@ -340,6 +328,5 @@ ggplot() +
 
 
 
-#ggsave(here('figures','driving_isochrones_size_by_time_lines.png'),bg='white', width = 7, height = 5)
 
 ```
