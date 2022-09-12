@@ -1,0 +1,19 @@
+Package: osmisochrone
+Type: Package
+Title: Isochrone creation
+Version: 0.1.0
+Author: Who wrote it
+Maintainer: The package maintainer <yourself@somewhere.net>
+Description: Code to create isochrones using open street map (OSM) data.
+License: MIT LICENSE
+Encoding: UTF-8
+LazyData: true
+Suggests: 
+    testthat (>= 3.0.0)
+Imports:
+    osmdata,
+    dodgr,
+    cppRouting,
+    stplanr,
+    concaveman
+Config/testthat/edition: 3
