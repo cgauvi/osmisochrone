@@ -1,0 +1,345 @@
+---
+title: "osmIsochrone"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{osmIsochrone}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+
+# Setup 
+## Librairies 
+
+```{r setup,  message=F ,warning=FALSE}
+library(osmisochrone)
+options("rgdal_show_exportToProj4_warnings"="none")
+library(sf)
+library(here)
+library(tidyverse)
+library(magrittr)
+library(glue)
+
+library(osmdata)
+
+assertthat::assert_that(curl::has_internet(), msg='Internet required to run tests and query the OSM data')
+
+```
+
+
+## Ggplot theme
+```{r, message=FALSE }
+custom_minimal_theme <- function(){  ggplot2::theme_minimal(base_family="Roboto Condensed", base_size=11.5) }
+```
+
+## Check for figures dir
+```{r, message=FALSE }
+
+if(!dir.exists(here('figures'))){
+  dir.create(here('figures'))
+}
+
+```
+
+## Params
+```{r}
+
+list_cities <- c('Montreal', 'Quebec City')
+```
+
+
+---
+---
+
+## Compare cities
+
+Atlanta is too long to run
+
+## Atlanta
+```{r,  eval=F}
+
+shp_Atlanta_bbox <-  bbox_from_osm('Atlanta')
+shp_point <- shp_Atlanta_bbox%>% sf::st_convex_hull() %>% st_centroid()
+
+osm <-  osmdata::opq(bbox = 'Atlanta') %>%
+    add_osm_feature( key = "highway" ) %>%
+    osmdata_sf ()
+
+
+
+shp_iso_all_modes <- osmisochrone::st_make_isochrone (shp_point %>% st_transform(crs=4326),
+                           buffer_km = 1)
+
+
+ggplot() +
+  geom_sf(data=osm$osm_lines,lwd=0.1) +
+  geom_sf(data=shp_iso_all_modes, aes(fill=limit_minutes),alpha=0.5) +
+  geom_sf(data=shp_point, col='salmon') +
+  scale_fill_viridis_c() +
+  facet_wrap(~mode,nrow=2) +
+  ggtitle('Atlanta isochrones') +
+  labs(caption = 'Max speeds from {dodgr}. Network from OSM overpass query through {osmdata} ',
+       fill='Time (minutes)') +
+  custom_minimal_theme() +
+  coord_sf(datum=NA)
+
+
+#ggsave(here('figures', 'isochrones_all_modes_atlanta_1km.png'),bg='white')
+
+```
+
+
+
+## Quebec City
+
+### OSM query
+```{r}
+
+  shp_point <- data.frame(X=-71.22776107610193, Y=46.805060757836486) %>% 
+  sf::st_as_sf(coords=c('X','Y'),crs=4326)
+   
+  osm <- osmisochrone::osm_buffer_query_helper(shp_point,buffer_km = 1 )
+  
+```
+
+
+
+### Walking
+```{r}
+
+shp_isochrone <- osmisochrone::st_make_isochrone (shp_point,
+                           buffer_km = 1,
+                           limit_minutes = seq(1,5,by=1),
+                           list_modes= c("foot"),
+                           list_osm_params= list(  list(key='highway' ) )
+                           )
+
+ggplot() + 
+  geom_sf(data=osm$osm_lines,lwd=0.1) + 
+  geom_sf(data=shp_isochrone, aes(fill=limit_minutes),alpha=0.5) + 
+  geom_sf(data=shp_point, col='salmon') + 
+  scale_fill_viridis_c() + 
+  ggtitle('Quebec City isochrones (walking)') + 
+  labs(caption = 'Max speeds from {dodgr}. Network from OSM overpass query through {osmdata} ',
+       fill='Time (minutes)') + 
+  custom_minimal_theme() + 
+  coord_sf(datum=NA)
+
+```
+
+### Cycling
+```{r}
+
+shp_isochrone <- osmisochrone::st_make_isochrone (shp_point,
+                           buffer_km = 1,
+                           limit_minutes = c(1,2,5),
+                           list_modes= c("bicycle"),
+                           list_osm_params= list(  list(key='highway' ) )
+                           )
+
+
+
+ggplot() + 
+  geom_sf(data=osm$osm_lines,lwd=0.1) + 
+  geom_sf(data=shp_isochrone, aes(fill=limit_minutes),alpha=0.5) + 
+  geom_sf(data=shp_point, col='salmon') + 
+  scale_fill_viridis_c() + 
+  ggtitle('Quebec City isochrones (cycling)') + 
+  labs(caption = 'Max speeds from {dodgr}. Network from OSM overpass query through {osmdata} ',
+       fill='Time (minutes)') + 
+  custom_minimal_theme() + 
+  coord_sf(datum=NA)
+
+```
+
+### Driving
+```{r}
+
+shp_isochrone <- osmisochrone::st_make_isochrone (shp_point,
+                           buffer_km = 1,
+                           limit_minutes = c(1,2,5),
+                           list_modes= c("motorcar"),
+                           list_osm_params= list(  list(key='highway' ) )
+                           )
+
+
+
+ggplot() + 
+  geom_sf(data=osm$osm_lines,lwd=0.1) + 
+  geom_sf(data=shp_isochrone, aes(fill=limit_minutes),alpha=0.5) + 
+  geom_sf(data=shp_point, col='salmon') + 
+  scale_fill_viridis_c() + 
+  ggtitle('Quebec City isochrones (driving)') + 
+  labs(caption = 'Max speeds from {dodgr}. Network from OSM overpass query through {osmdata} ',
+       fill='Time (minutes)') + 
+  custom_minimal_theme() + 
+  coord_sf(datum=NA)
+
+```
+ 
+
+
+
+
+---
+---
+
+
+# Compare cities - Quebec City vs Atlanta vs Montreal
+
+ 
+
+## Wrapper over osmisochrone::st_make_isochrone to get the city centroid   
+```{r}
+
+get_isochrone_from_city_centroid <- function(city_str, 
+                          buffer_size_km = 5,  #at 50 km/h <-> 1.2 min per km, driving for 15 minutes results in 18 km distance 
+                          list_modes=c("motorcar"),
+                          list_times=c(1,2,5)){
+  
+  shp_bbox <- osmisochrone::st_osm_city_centroid_from_string(city_str)
+  
+
+  shp_isochrone <- osmisochrone::st_make_isochrone (
+                             shp_bbox %>% st_centroid(),
+                             buffer_km = buffer_size_km,
+                             limit_minutes =list_times,
+                             list_modes= list_modes,
+                             list_osm_params= list(  list(key='highway' ) )
+                             )
+  #Add the city name
+  shp_isochrone %<>% mutate(city=city_str)
+  
+
+  return(shp_isochrone)
+  
+  
+  }
+
+
+
+
+```
+
+
+## Wrapper over osmisochrone::osm_buffer_query_helper to get the city street network   
+```{r}
+
+get_street_network <- function(city_str,
+                                buffer_size_km = 1){
+  
+ shp_bbox <- osmisochrone::st_osm_city_centroid_from_string(city_str)
+ 
+ osm_results <- osmisochrone::osm_buffer_query_helper( shp_point = st_centroid(shp_bbox),
+                                                      buffer_km = buffer_size_km)
+ 
+
+ shp_streets <- osm_results$osm_lines
+ shp_streets %<>% mutate(city=city_str)
+ 
+ assertthat::assert_that(nrow(shp_streets) >0)
+ 
+ return(shp_streets)
+}
+
+```
+
+
+## Isochrones
+```{r}
+
+shp_isochone <- map_dfr( list_cities,
+                         get_isochrone_from_city_centroid)
+
+```
+## Street network
+```{r}
+
+shp_streets <- map_dfr( list_cities,
+                         ~get_street_network(.x,buffer_size_km = 1))
+
+```
+
+## Map
+
+```{r}
+
+library(patchwork)
+
+plot_city <- function(city_str){
+  ggplot() + 
+  geom_sf(data=shp_streets %>% filter(city==city_str),lwd=0.1) + 
+  geom_sf(data=shp_isochone%>% filter(city==city_str), aes(fill=limit_minutes),alpha=0.2) + 
+  scale_fill_viridis_c()  + 
+    labs(subtitle = city_str) + 
+  custom_minimal_theme() + 
+  coord_sf(datum=NA)  
+}
+
+
+list_plots <- map(list_cities , plot_city )
+
+
+
+wrap_plots( list_plots) +
+plot_annotation(  
+  title='Comparing driving isochrones -- ignores traffic' ,
+  caption = 'Max speeds from {dodgr}. Network from OSM overpass query through {osmdata} '
+) +
+   plot_layout(guides = 'collect') & theme(legend.position = 'bottom',
+                                           plot.title = element_text(family='Roboto condensed'),
+                                           plot.caption = element_text(family='Roboto condensed')) & labs(fill='Time (minutes)' )
+
+
+#ggsave(here('figures','driving_isochrones_size_by_time_map.png'),bg='white', width = 7, height = 5)
+ 
+
+```
+
+## Compare the sizes
+```{r}
+
+compare_size <- function(shp_isochone, time){
+  
+  shp_isochone_time <- shp_isochone %>% filter(limit_minutes==time)
+  
+  shp_isochone_time %>% 
+    st_transform(crs=3857) %>% 
+    mutate(area_sq_km=units::drop_units(st_area(.))*10**-6)
+}
+
+
+df_sizes <- map_dfr( c(1,2,5), ~compare_size(shp_isochone, .x))
+
+```
+
+
+
+## Plot
+
+```{r}
+
+
+
+ggplot() + 
+  geom_line(data=df_sizes,aes(x=limit_minutes, y=area_sq_km, group=city,col=city)) + 
+  ggtitle('Comparing driving isochrones sizes') + 
+  labs(subtitle = 'Isochrone computed from city centroid -- ignores traffic',
+       caption = 'Max speeds from {dodgr}. Network from OSM overpass query through {osmdata} ',
+       col='') + 
+ custom_minimal_theme() + 
+  xlab('Drive time') + 
+  ylab('Area (square km)')
+
+
+
+#ggsave(here('figures','driving_isochrones_size_by_time_lines.png'),bg='white', width = 7, height = 5)
+
+```
